@@ -875,16 +875,32 @@ def open_link(event):
 
 # 创建主窗口
 window = Tk()
-window.title("H265视频批量压缩工具 by电不撕")
-window.geometry("630x630")  # 调整窗口尺寸以适应新布局
+window.title("传媒影视工具集")
+window.geometry("650x680")  # 调整窗口尺寸以适应新布局
 
 # 设置窗口图标
 icon_path = os.path.join(os.path.dirname(__file__), "FPT_favicon.ico")
 if os.path.isfile(icon_path):
     window.iconbitmap(icon_path)
 
-# 上方框架（左右分栏）
-top_frame = Frame(window)
+# 创建标签页容器
+notebook = ttk.Notebook(window)
+notebook.pack(fill=BOTH, expand=True, padx=10, pady=10)
+
+# 创建第一个标签页：H265视频批量压缩工具
+compression_tab = Frame(notebook)
+notebook.add(compression_tab, text="H265视频批量压缩工具")
+
+# 创建第二个标签页：VFR转CFR
+vfr_tab = Frame(notebook)
+notebook.add(vfr_tab, text="VFR转CFR")
+
+# VFR转CFR页面内容（待开发）
+vfr_label = Label(vfr_tab, text="待开发", font=("TkDefaultFont", 16))
+vfr_label.pack(expand=True, fill=BOTH)
+
+# 上方框架（左右分栏）- 放入压缩工具标签页
+top_frame = Frame(compression_tab)
 top_frame.pack(side=TOP, fill=X, padx=10, pady=10)
 
 # 左上方框架
@@ -1022,8 +1038,8 @@ transcode_button.pack(side=LEFT, padx=10)
 stop_button = Button(button_frame, text="终止", command=stop_processing_func)
 stop_button.pack(side=LEFT, padx=10)
 
-# 下方框架
-bottom_frame = Frame(window)
+# 下方框架 - 放入压缩工具标签页
+bottom_frame = Frame(compression_tab)
 bottom_frame.pack(side=BOTTOM, fill=BOTH, expand=True, padx=10, pady=10)
 
 # 进度条
