@@ -12,6 +12,45 @@ import webbrowser
 from PIL import Image, ImageTk  # 导入Pillow库
 import calculate_sb_coefficient
 
+# 读取跳过列表
+def get_skip_list():
+    """
+    从skip.txt文件中读取跳过列表
+    """
+    skip_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'skip.txt')
+    skip_list = []
+    try:
+        with open(skip_file, 'r', encoding='utf-8') as f:
+            skip_list = [line.strip() for line in f if line.strip()]
+    except FileNotFoundError:
+        print(f"警告: 跳过列表文件 {skip_file} 未找到")
+    except Exception as e:
+        print(f"读取跳过列表时出错: {str(e)}")
+    return skip_list
+
+# 初始化跳过列表
+skip_list = get_skip_list()
+
+# 常见的非视频文件扩展名列表，用于快速过滤
+non_video_extensions = {
+    # 图片文件
+    '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp', '.svg', '.heic',
+    # 文档文件
+    '.txt', '.doc', '.docx', '.pdf', '.xls', '.xlsx', '.ppt', '.pptx', '.odt', '.ods', '.odp',
+    # 音频文件
+    '.mp3', '.wav', '.aac', '.flac', '.ogg', '.m4a', '.wma', '.opus',
+    # 压缩文件
+    '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz',
+    # 代码文件
+    '.py', '.java', '.cpp', '.c', '.h', '.cs', '.js', '.html', '.css', '.php', '.go', '.rust',
+    # 配置文件
+    '.ini', '.conf', '.cfg', '.json', '.yaml', '.yml', '.xml', '.toml',
+    # 系统文件
+    '.exe', '.dll', '.sys', '.bat', '.cmd', '.sh', '.lnk', '.iso', '.img',
+    # 其他常见非视频文件
+    '.log', '.tmp', '.temp', '.bak', '.backup', '.swp', '.swo',
+}
+
 def run_hidden(command, **kwargs):
     if sys.platform == 'win32':
         CREATE_NO_WINDOW = 0x08000000
@@ -29,6 +68,25 @@ def get_ffmpeg_executable():
         raise FileNotFoundError("ffmpeg.exe 或 ffprobe.exe 未找到，请检查 /bin 文件夹。")
 
     return ffmpeg_exe, ffprobe_exe
+
+
+def is_video_file(file_path):
+    """
+    使用ffprobe检测文件是否为视频文件
+    """
+    try:
+        ffmpeg_exe, ffprobe_exe = get_ffmpeg_executable()
+        cmd = [
+            ffprobe_exe, '-v', 'error', '-select_streams', 'v:0',
+            '-show_entries', 'stream=codec_type', '-of', 'default=noprint_wrappers=1:nokey=1',
+            file_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        # 如果包含视频流，返回True
+        return result.returncode == 0 and result.stdout.strip() == 'video'
+    except Exception:
+        # 其他错误，如文件不存在、权限问题等
+        return False
 
 
 def get_folder_size(folder_path):
@@ -392,18 +450,36 @@ def compare_videos(video1, video2):
 
 def process_folder_with_output(folder_path, output_folder_path, coefficient, use_cpu):
     initial_size = get_folder_size(folder_path)
-    supported_extensions = (
-        '.mp4', '.mkv', '.avi', '.m4v', '.mpg', '.mts', '.ts', '.mov', '.mxf', '.webm', '.flv', '.f4v', '.wmv'
-    )
     video_files = []
     skipped_files = []
     failed_files = []
     secondary_success_files = []
+    total_files = 0
+    checked_files = 0
 
     for root, dirs, files in os.walk(folder_path):
         for filename in files:
-            if filename.lower().endswith(supported_extensions):
-                video_files.append(os.path.join(root, filename))
+            total_files += 1
+            
+            # 获取文件扩展名（转换为小写）
+            _, ext = os.path.splitext(filename)
+            ext = ext.lower()
+            
+            # 快速过滤常见非视频文件
+            if ext in non_video_extensions:
+                continue
+            
+            file_path = os.path.join(root, filename)
+            
+            # 检查路径是否包含跳过列表中的任何文本
+            if any(skip_text in file_path for skip_text in skip_list):
+                continue
+            
+            checked_files += 1
+            
+            # 使用ffprobe检测文件是否为视频文件
+            if is_video_file(file_path):
+                video_files.append(file_path)
 
     total_files = len(video_files)
     log_text.insert(END, f"找到 {total_files} 个视频文件。\n")
@@ -543,17 +619,36 @@ def process_folder_with_output(folder_path, output_folder_path, coefficient, use
 def process_folder(folder_path, coefficient, use_cpu):
     global stop_processing
     initial_size = get_folder_size(folder_path)
-    supported_extensions = (
-    '.mp4', '.mkv', '.avi', '.m4v', '.mpg', '.mts', '.ts', '.mov', '.mxf', '.webm', '.flv', '.f4v', '.wmv')
     video_files = []
     skipped_files = []
     failed_files = []
     secondary_success_files = []
+    total_files = 0
+    checked_files = 0
 
     for root, dirs, files in os.walk(folder_path):
         for filename in files:
-            if filename.lower().endswith(supported_extensions):
-                video_files.append(os.path.join(root, filename))
+            total_files += 1
+            
+            # 获取文件扩展名（转换为小写）
+            _, ext = os.path.splitext(filename)
+            ext = ext.lower()
+            
+            # 快速过滤常见非视频文件
+            if ext in non_video_extensions:
+                continue
+            
+            file_path = os.path.join(root, filename)
+            
+            # 检查路径是否包含跳过列表中的任何文本
+            if any(skip_text in file_path for skip_text in skip_list):
+                continue
+            
+            checked_files += 1
+            
+            # 使用ffprobe检测文件是否为视频文件
+            if is_video_file(file_path):
+                video_files.append(file_path)
 
     total_files = len(video_files)
     log_text.insert(END, f"找到 {total_files} 个视频文件。\n")
