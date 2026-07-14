@@ -1,4 +1,7 @@
-bin/ffplay.exe
-bin/ffmpeg.exe
-bin/ffprobe.exe
-dist/H265视频批量压缩工具 by电不撕.exe
+__pycache__/
+*.pyc
+*.pyo
+.Python
+.env
+.DS_Store
+*.log
